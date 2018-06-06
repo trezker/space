@@ -1,0 +1,23 @@
+{
+	"name": "space",
+	"authors": [
+		"anders andersson"
+	],
+	"dependencies": {
+		"derelict-gl3" : "~master",
+		"gl3n" : "~master",
+		"allegro": "~>4.0.2"
+	},
+	"libs": [
+		"GLU", 
+		"allegro-debug", 
+		"allegro_primitives-debug", 
+		"allegro_image-debug", 
+		"allegro_font-debug", 
+		"allegro_ttf-debug", 
+		"allegro_color-debug"
+	],
+	"description": "Space game",
+	"copyright": "Copyright © 2018, anders andersson",
+	"license": "MIT"
+}
