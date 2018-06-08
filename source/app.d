@@ -15,6 +15,9 @@ struct Planet {
 	float radius;
 	float mass;
 	float orbit;
+	float orbitangle;
+	vec2 position;
+	vec2 velocity;
 	ALLEGRO_COLOR color;
 };
 
@@ -32,6 +35,7 @@ struct Ship {
 struct View {
 	vec2 displaysize;
 	vec2 center;
+	float scale;
 };
 
 void initialize_allegro() {
@@ -119,6 +123,25 @@ void ship_events(ref Ship ship, ALLEGRO_EVENT event) {
 	}
 }
 
+void update_planet_position(ref Planet planet) {
+	if(!planet.position) {
+		planet.position = vec2(
+			cos(planet.orbitangle) * planet.orbit, 
+			sin(planet.orbitangle) * planet.orbit
+		);
+	}
+
+	planet.orbitangle += planet.radius / (planet.orbit * planet.orbit);
+	vec2 newplanetposition = vec2(
+		cos(planet.orbitangle) * planet.orbit, 
+		sin(planet.orbitangle) * planet.orbit
+	);
+
+	planet.velocity = newplanetposition - planet.position;
+	writeln(planet.velocity);
+	planet.position = newplanetposition;
+}
+
 int main(char[][] args) {
 	return al_run_allegro({
 		initialize_allegro();
@@ -133,13 +156,21 @@ int main(char[][] args) {
 
 		View mainview = {
 			displaysize: [1280f, 1024f],
-			center: [0f,0f]
+			center: [0f,0f],
+			scale: 1
+		};
+
+		View miniview = {
+			displaysize: [256f, 256f],
+			center: [0f,0f],
+			scale: 0.01
 		};
 
 		Planet planet = {
-			radius: 100,
-			mass: 50000,
-			orbit: 0,
+			radius: 500,
+			mass: 500000,
+			orbit: 10000,
+			orbitangle: 0,
 			color: ALLEGRO_COLOR(0, 1, 0, 1)
 		};
 
@@ -154,8 +185,9 @@ int main(char[][] args) {
 			rotate_right: false
 		};
 
-		ship.position.x = (planet.radius + ship.radius) * cos(ship.rotation);
-		ship.position.y = (planet.radius + ship.radius) * sin(ship.rotation);
+		update_planet_position(planet);
+		ship.position.x = planet.position.x + (planet.radius + ship.radius) * cos(ship.rotation);
+		ship.position.y = planet.position.y + (planet.radius + ship.radius) * sin(ship.rotation);
 
 		bool exit = false;
 		while(!exit)
@@ -187,6 +219,8 @@ int main(char[][] args) {
 					}
 					case ALLEGRO_EVENT_TIMER:
 					{
+						update_planet_position(planet);
+
 						if(ship.rotate_left) {
 							ship.rotation -= PI * timer_interval;
 							if(ship.rotation < -PI) {
@@ -204,17 +238,16 @@ int main(char[][] args) {
 							ship.velocity += 500 * direction * timer_interval;
 						}
 
-						vec2 planet_position = [0f, 0f];
-						vec2 difference = planet_position - ship.position;
+						vec2 difference = planet.position - ship.position;
 
 						float force = planet.mass / difference.magnitude_squared;
 						ship.velocity += difference.normalized() * force;
 						ship.position += ship.velocity * timer_interval;
 
-						difference = ship.position - planet_position;
+						difference = ship.position - planet.position;
 						if(difference.length < planet.radius + ship.radius) {
-							ship.position = planet_position + difference.normalized() * (planet.radius + ship.radius);
-							ship.velocity = vec2([0f, 0f]);
+							ship.position = planet.position + difference.normalized() * (planet.radius + ship.radius);
+							ship.velocity = planet.velocity;
 
 							float a = atan2(difference.y, difference.x);
 							float phi = fmod(abs(ship.rotation - a), PI*2);
@@ -225,6 +258,7 @@ int main(char[][] args) {
 						}
 
 						mainview.center = ship.position;
+						//miniview.center = ship.position;
 
 						break;
 					}
@@ -235,11 +269,16 @@ int main(char[][] args) {
 			al_clear_to_color(ALLEGRO_COLOR(0, 0, 0, 1));
 
 
+			draw_star(mainview);
 			draw_planet(planet, mainview);
 			draw_ship(ship, mainview);
 
+			draw_star(miniview);
+			draw_planet(planet, miniview);
+			draw_ship(ship, miniview);
+
 			al_draw_text(font, ALLEGRO_COLOR(1, 1, 1, 1), 10, 10, ALLEGRO_ALIGN_LEFT, "Hello!");
-			al_draw_text(font, ALLEGRO_COLOR(1, 1, 1, 1), 10, 30, ALLEGRO_ALIGN_LEFT, toStringz(to!string(ship.rotation)));
+			al_draw_text(font, ALLEGRO_COLOR(1, 1, 1, 1), 10, 30, ALLEGRO_ALIGN_LEFT, toStringz(to!string(planet.orbitangle)));
 			al_flip_display();
 		}
 
@@ -247,22 +286,38 @@ int main(char[][] args) {
 	});
 }
 
+void draw_star(View view) {
+	al_draw_circle(
+		view.displaysize.x/2-view.center.x*view.scale,
+		view.displaysize.y/2-view.center.y*view.scale, 
+		1000*view.scale,
+		ALLEGRO_COLOR(1, 0.7, 0.1, 1), 
+		1
+	);
+}
+
 void draw_planet(Planet planet, View view) {
-	al_draw_circle(view.displaysize.x/2-view.center.x, view.displaysize.y/2-view.center.y, planet.radius, planet.color, 1);
+	al_draw_circle(
+		view.displaysize.x/2-view.center.x*view.scale+planet.position.x*view.scale, 
+		view.displaysize.y/2-view.center.y*view.scale+planet.position.y*view.scale, 
+		planet.radius*view.scale, 
+		planet.color, 
+		1
+	);
 }
 
 void draw_ship(Ship ship, View view) {
-	float x = -view.center.x + view.displaysize.x/2 + ship.position.x;
-	float y = -view.center.y + view.displaysize.y/2 + ship.position.y;
+	float x = -view.center.x*view.scale + view.displaysize.x/2 + ship.position.x*view.scale;
+	float y = -view.center.y*view.scale + view.displaysize.y/2 + ship.position.y*view.scale;
 
-	float p1x = x + ship.radius * cos(ship.rotation);
-	float p1y = y + ship.radius * sin(ship.rotation);
+	float p1x = x + ship.radius*view.scale * cos(ship.rotation);
+	float p1y = y + ship.radius*view.scale * sin(ship.rotation);
 
-	float p2x = x + ship.radius * cos(ship.rotation + PI * 0.75);
-	float p2y = y + ship.radius * sin(ship.rotation + PI * 0.75);
+	float p2x = x + ship.radius*view.scale * cos(ship.rotation + PI * 0.75);
+	float p2y = y + ship.radius*view.scale * sin(ship.rotation + PI * 0.75);
 
-	float p3x = x + ship.radius * cos(ship.rotation - PI * 0.75);
-	float p3y = y + ship.radius * sin(ship.rotation - PI * 0.75);
+	float p3x = x + ship.radius*view.scale * cos(ship.rotation - PI * 0.75);
+	float p3y = y + ship.radius*view.scale * sin(ship.rotation - PI * 0.75);
 
 	al_draw_triangle(p1x, p1y, p2x, p2y, p3x, p3y, ship.color, 1);
 }
