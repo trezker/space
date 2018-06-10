@@ -162,10 +162,20 @@ int main(char[][] args) {
 		View miniview = {
 			displaysize: [256f, 256f],
 			center: [0f,0f],
-			scale: 0.01
+			scale: 0.005
 		};
 
 		Planet[] planets;
+		
+		Planet star = {
+			radius: 1000,
+			mass: 5000000,
+			orbit: 1,
+			orbitangle: 0,
+			color: ALLEGRO_COLOR(1, 0.7, 0.1, 1)
+		};
+		planets ~= star;
+
 		Planet p = {
 			radius: 500,
 			mass: 500000,
@@ -174,6 +184,15 @@ int main(char[][] args) {
 			color: ALLEGRO_COLOR(0, 1, 0, 1)
 		};
 		planets ~= p;
+
+		Planet p2 = {
+			radius: 500,
+			mass: 500000,
+			orbit: 20000,
+			orbitangle: 1,
+			color: ALLEGRO_COLOR(0, 1, 0, 1)
+		};
+		planets ~= p2;
 
 		Ship ship = {
 			radius: 10,
@@ -189,8 +208,8 @@ int main(char[][] args) {
 		foreach(ref Planet planet; planets) {
 			update_planet_position(planet);
 		}
-		ship.position.x = planets[0].position.x + (planets[0].radius + ship.radius) * cos(ship.rotation);
-		ship.position.y = planets[0].position.y + (planets[0].radius + ship.radius) * sin(ship.rotation);
+		ship.position.x = planets[1].position.x + (planets[1].radius + ship.radius) * cos(ship.rotation);
+		ship.position.y = planets[1].position.y + (planets[1].radius + ship.radius) * sin(ship.rotation);
 
 		bool exit = false;
 		while(!exit)
@@ -279,13 +298,11 @@ int main(char[][] args) {
 			al_clear_to_color(ALLEGRO_COLOR(0, 0, 0, 1));
 
 
-			draw_star(mainview);
 			foreach(Planet planet; planets) {
 				draw_planet(planet, mainview);
 			}
 			draw_ship(ship, mainview);
 
-			draw_star(miniview);
 			foreach(Planet planet; planets) {
 				draw_planet(planet, miniview);
 			}
@@ -298,16 +315,6 @@ int main(char[][] args) {
 
 		return 0;
 	});
-}
-
-void draw_star(View view) {
-	al_draw_circle(
-		view.displaysize.x/2-view.center.x*view.scale,
-		view.displaysize.y/2-view.center.y*view.scale, 
-		1000*view.scale,
-		ALLEGRO_COLOR(1, 0.7, 0.1, 1), 
-		1
-	);
 }
 
 void draw_planet(Planet planet, View view) {
