@@ -138,7 +138,6 @@ void update_planet_position(ref Planet planet) {
 	);
 
 	planet.velocity = newplanetposition - planet.position;
-	writeln(planet.velocity);
 	planet.position = newplanetposition;
 }
 
@@ -166,13 +165,15 @@ int main(char[][] args) {
 			scale: 0.01
 		};
 
-		Planet planet = {
+		Planet[] planets;
+		Planet p = {
 			radius: 500,
 			mass: 500000,
 			orbit: 10000,
 			orbitangle: 0,
 			color: ALLEGRO_COLOR(0, 1, 0, 1)
 		};
+		planets ~= p;
 
 		Ship ship = {
 			radius: 10,
@@ -185,9 +186,11 @@ int main(char[][] args) {
 			rotate_right: false
 		};
 
-		update_planet_position(planet);
-		ship.position.x = planet.position.x + (planet.radius + ship.radius) * cos(ship.rotation);
-		ship.position.y = planet.position.y + (planet.radius + ship.radius) * sin(ship.rotation);
+		foreach(ref Planet planet; planets) {
+			update_planet_position(planet);
+		}
+		ship.position.x = planets[0].position.x + (planets[0].radius + ship.radius) * cos(ship.rotation);
+		ship.position.y = planets[0].position.y + (planets[0].radius + ship.radius) * sin(ship.rotation);
 
 		bool exit = false;
 		while(!exit)
@@ -219,8 +222,6 @@ int main(char[][] args) {
 					}
 					case ALLEGRO_EVENT_TIMER:
 					{
-						update_planet_position(planet);
-
 						if(ship.rotate_left) {
 							ship.rotation -= PI * timer_interval;
 							if(ship.rotation < -PI) {
@@ -238,16 +239,25 @@ int main(char[][] args) {
 							ship.velocity += 500 * direction * timer_interval;
 						}
 
-						vec2 difference = planet.position - ship.position;
+						vec2 difference = [float.max,float.max];
+						Planet nearestplanet = planets[0];
+						foreach(ref Planet planet; planets) {
+							update_planet_position(planet);
+							vec2 d = planet.position - ship.position;
 
-						float force = planet.mass / difference.magnitude_squared;
+							if(d.magnitude_squared < difference.magnitude_squared) {
+								difference = d;
+								nearestplanet = planet;
+							}
+						}
+						float force = nearestplanet.mass / difference.magnitude_squared;
 						ship.velocity += difference.normalized() * force;
 						ship.position += ship.velocity * timer_interval;
 
-						difference = ship.position - planet.position;
-						if(difference.length < planet.radius + ship.radius) {
-							ship.position = planet.position + difference.normalized() * (planet.radius + ship.radius);
-							ship.velocity = planet.velocity;
+						difference = ship.position - nearestplanet.position;
+						if(difference.length < nearestplanet.radius + ship.radius) {
+							ship.position = nearestplanet.position + difference.normalized() * (nearestplanet.radius + ship.radius);
+							ship.velocity = nearestplanet.velocity;
 
 							float a = atan2(difference.y, difference.x);
 							float phi = fmod(abs(ship.rotation - a), PI*2);
@@ -270,15 +280,19 @@ int main(char[][] args) {
 
 
 			draw_star(mainview);
-			draw_planet(planet, mainview);
+			foreach(Planet planet; planets) {
+				draw_planet(planet, mainview);
+			}
 			draw_ship(ship, mainview);
 
 			draw_star(miniview);
-			draw_planet(planet, miniview);
+			foreach(Planet planet; planets) {
+				draw_planet(planet, miniview);
+			}
 			draw_ship(ship, miniview);
 
 			al_draw_text(font, ALLEGRO_COLOR(1, 1, 1, 1), 10, 10, ALLEGRO_ALIGN_LEFT, "Hello!");
-			al_draw_text(font, ALLEGRO_COLOR(1, 1, 1, 1), 10, 30, ALLEGRO_ALIGN_LEFT, toStringz(to!string(planet.orbitangle)));
+			//al_draw_text(font, ALLEGRO_COLOR(1, 1, 1, 1), 10, 30, ALLEGRO_ALIGN_LEFT, toStringz(to!string(planet.orbitangle)));
 			al_flip_display();
 		}
 
